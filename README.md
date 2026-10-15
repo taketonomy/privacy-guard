@@ -44,3 +44,7 @@ claude plugin test .
 ```
 
 The detection rules are in `hooks/scan.ts`; the blocking, toast and pane are in `hooks/register.tsx`.
+
+## License
+
+MIT. See [LICENSE](LICENSE).
