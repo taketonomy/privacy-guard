@@ -1,0 +1,5 @@
+{
+  "name": "privacy-guard",
+  "owner": { "name": "taketonomy" },
+  "plugins": [{ "name": "privacy-guard", "source": "./" }]
+}
