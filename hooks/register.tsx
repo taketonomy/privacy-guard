@@ -32,7 +32,8 @@ const pendingDiff = async ($: EngineInterface, cwd: string | undefined, action: 
   return undefined
 }
 
-const statusText = (n: number, b: number) => `🛡️ privacy-guard · ${n} checked · ${b} blocked`
+// Claude Code already puts the mod's name in front of its status text.
+const statusText = (n: number, b: number) => `🛡️ ${n} checked · ${b} blocked`
 
 // Asks the person whether these names may be committed. Dismissed, or no one
 // to ask (a -p run), counts as no.
@@ -47,6 +48,12 @@ const askPerson = async ($: EngineInterface, kind: string, hits: Hit[]) => {
   } catch {
     return false
   }
+}
+
+// The command's first line, short enough for the pane (a commit message can run on).
+const firstLine = (command: string) => {
+  const line = command.split('\n')[0] ?? ''
+  return line.length > 60 ? `${line.slice(0, 59)}…` : line
 }
 
 const describe = (hits: Hit[]) =>
@@ -166,7 +173,7 @@ export const register: Register = on => {
               ? `Blocked: ${check.hits.length} hit(s)`
               : 'Clean: nothing found'}
         </Text>
-        <Text dimColor>{check.command.slice(0, 60)}</Text>
+        <Text dimColor>{firstLine(check.command)}</Text>
         {check.hits.map(hit => (
           <Box flexDirection="column" marginTop={1}>
             <Text>

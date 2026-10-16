@@ -1,6 +1,6 @@
 {
   "name": "privacy-guard",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Blocks git commit/push when the diff adds personal names (〜さん/様/先生) or Slack tokens, with a shield band above the prompt, a status-line counter, a toast and a pane listing each hit",
   "author": {
     "name": "taketonomy"
