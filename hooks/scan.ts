@@ -62,6 +62,15 @@ export const gitAction = (command: string): GitAction => {
   return null
 }
 
+// Whether the command stages files before its commit (`git add x && git commit`).
+// The check reads the index before the command runs, so it cannot see what that
+// staging step will add.
+export const stagesBeforeCommit = (command: string): boolean => {
+  const commit = /\bgit\s+(-C\s+\S+\s+)?commit\b/.exec(command)
+  if (commit === null) return false
+  return /\bgit\s+(-C\s+\S+\s+)?(add|rm|mv)\b/.test(command.slice(0, commit.index))
+}
+
 // The directory the command runs git in: `git -C <dir>`, or a leading `cd <dir> &&`.
 export const gitDirectory = (command: string): string | undefined =>
   /\bgit\s+-C\s+("[^"]+"|'[^']+'|\S+)/.exec(command)?.[1]?.replace(/^["']|["']$/g, '') ??

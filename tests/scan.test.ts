@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { gitAction, gitDirectory, scanDiff, scanLine } from '../hooks/scan'
+import { gitAction, gitDirectory, scanDiff, scanLine, stagesBeforeCommit } from '../hooks/scan'
 
 describe('scanLine', () => {
   test('finds names with honorifics', async () => {
@@ -47,5 +47,18 @@ describe('gitAction', () => {
   test('finds the directory', async () => {
     expect(gitDirectory('cd /tmp/repo && git commit -m x')).toBe('/tmp/repo')
     expect(gitDirectory('git -C "/a b" push')).toBe('/a b')
+  })
+})
+
+describe('stagesBeforeCommit', () => {
+  test('spots staging chained before a commit', async () => {
+    expect(stagesBeforeCommit('git add notes.md && git commit -m x')).toBe(true)
+    expect(stagesBeforeCommit('cd /r && git -C /r rm old.md; git commit -m x')).toBe(true)
+    expect(stagesBeforeCommit('git add -A && git commit -m x && git push')).toBe(true)
+  })
+  test('leaves a lone commit, staging after it, and plain adds alone', async () => {
+    expect(stagesBeforeCommit('git commit -m "add notes"')).toBe(false)
+    expect(stagesBeforeCommit('git commit -m x && git add y')).toBe(false)
+    expect(stagesBeforeCommit('git add notes.md')).toBe(false)
   })
 })

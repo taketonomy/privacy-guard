@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { Check, Hit } from '../types'
-import { gitAction, gitDirectory, scanDiff } from './scan'
+import { gitAction, gitDirectory, scanDiff, stagesBeforeCommit } from './scan'
 import type { GitAction } from './scan'
 
 const PANE = 'privacy-guard'
@@ -50,6 +50,16 @@ export const register: Register = on => {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const action = gitAction(e.command)
     if (action === null || e.command.includes(OVERRIDE)) return next(e)
+
+    if (action.kind === 'commit' && stagesBeforeCommit(e.command)) {
+      $.ui.toast('🛡️ privacy-guard: stage first, then commit in a separate command')
+      return {
+        deny:
+          'privacy-guard checks the staged changes before a command runs, so it cannot see what ' +
+          '`git add` in this same command would stage. Run the `git add` (or rm/mv) on its own first, ' +
+          'then run `git commit` as a separate command.',
+      }
+    }
 
     const diff = await pendingDiff($, gitDirectory(e.command), action)
     const hits = diff === undefined ? [] : scanDiff(diff)
