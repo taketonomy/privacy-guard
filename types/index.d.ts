@@ -13,6 +13,6 @@ export type Check = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'privacy-guard': { last: Check | null }
+    'privacy-guard': { last: Check | null; checked: number; blocked: number; isHidden: boolean }
   }
 }
