@@ -11,7 +11,7 @@ Before Claude runs `git commit` or `git push`, it scans the lines the commit or 
 What you see:
 
 - A shield band above the prompt: `🛡️ ARMED` before the first check, then `⛔ BLOCKED` (red, with the hits) or `✅ CLEAN` (green), with running counts. **Details** opens the pane; **Hide** hides the band until the next check.
-- A status-line counter: `🛡️ privacy-guard · 3 checked · 1 blocked`.
+- A status-line counter: `privacy-guard: 🛡️ 3 checked · 1 blocked`.
 - A toast (`⚠️ blocked` or `🛡️ clean`) and a pane listing each hit. `/privacy-guard` reopens the pane.
 
 Because it reads the staged changes before the command runs, a command that stages and commits in one go (`git add x && git commit`) is refused with a note to run `git add` first and `git commit` separately; otherwise the files that `git add` stages would go unchecked.
