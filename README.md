@@ -8,7 +8,13 @@ Before Claude runs `git commit` or `git push`, it scans the lines the commit or 
 - Romanized forms: `Yamada-san`, `Sato-sensei`
 - Slack tokens: `xoxb-…`, `xoxp-…`, `xapp-…` (shown masked)
 
-You also get a toast (`⚠️ blocked` or `🛡️ clean`) and a pane listing each hit. `/privacy-guard` reopens the pane.
+What you see:
+
+- A shield band above the prompt: `🛡️ ARMED` before the first check, then `⛔ BLOCKED` (red, with the hits) or `✅ CLEAN` (green), with running counts. **Details** opens the pane; **Hide** hides the band until the next check.
+- A status-line counter: `🛡️ privacy-guard · 3 checked · 1 blocked`.
+- A toast (`⚠️ blocked` or `🛡️ clean`) and a pane listing each hit. `/privacy-guard` reopens the pane.
+
+Because it reads the staged changes before the command runs, a command that stages and commits in one go (`git add x && git commit`) is refused with a note to run `git add` first and `git commit` separately; otherwise the files that `git add` stages would go unchecked.
 
 Words that name nobody (`皆さん`, `お客様`, `ご苦労様`, `先生` on its own) are ignored. To commit a name on purpose, put `PRIVACY_GUARD_ALLOW=1` in the command. If the check itself fails (for example, outside a git repo), the command runs as normal.
 
