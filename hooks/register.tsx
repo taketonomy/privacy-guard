@@ -11,8 +11,10 @@ const checked = atom({ plugin: 'privacy-guard', key: 'checked' } as const, 0)
 const blocked = atom({ plugin: 'privacy-guard', key: 'blocked' } as const, 0)
 const isHidden = atom({ plugin: 'privacy-guard', key: 'isHidden' } as const, false)
 
-// Put this in the command to commit anyway, on purpose.
-const OVERRIDE = 'PRIVACY_GUARD_ALLOW=1'
+// Only the person can let names through: Claude cannot answer this dialog.
+// Tokens are never let through.
+const ALLOW = 'Commit anyway'
+const BLOCK = 'Block it'
 
 const git = async ($: EngineInterface, cwd: string | undefined, args: string[]) => {
   const ran = await $.process.run(['git', ...args], { cwd })
@@ -32,6 +34,21 @@ const pendingDiff = async ($: EngineInterface, cwd: string | undefined, action: 
 
 const statusText = (n: number, b: number) => `🛡️ privacy-guard · ${n} checked · ${b} blocked`
 
+// Asks the person whether these names may be committed. Dismissed, or no one
+// to ask (a -p run), counts as no.
+const askPerson = async ($: EngineInterface, kind: string, hits: Hit[]) => {
+  const list = hits.slice(0, 5).map(hit => hit.match).join(', ')
+  try {
+    const answer = await $.ui.ask(`privacy-guard found personal names in this git ${kind}: ${list}. Commit them anyway?`, {
+      options: [BLOCK, ALLOW],
+      header: 'Privacy',
+    })
+    return answer === ALLOW
+  } catch {
+    return false
+  }
+}
+
 const describe = (hits: Hit[]) =>
   hits.map(hit => `  ${hit.file}:${hit.line}  ${hit.kind === 'token' ? 'token' : 'name'}  ${hit.match}`).join('\n')
 
@@ -49,7 +66,7 @@ export const register: Register = on => {
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     const action = gitAction(e.command)
-    if (action === null || e.command.includes(OVERRIDE)) return next(e)
+    if (action === null) return next(e)
 
     if (action.kind === 'commit' && stagesBeforeCommit(e.command)) {
       $.ui.toast('🛡️ privacy-guard: stage first, then commit in a separate command')
@@ -63,19 +80,26 @@ export const register: Register = on => {
 
     const diff = await pendingDiff($, gitDirectory(e.command), action)
     const hits = diff === undefined ? [] : scanDiff(diff)
-    await update($, last, () => ({ command: e.command, hits, isBlocked: hits.length > 0 }))
+    const names = hits.filter(hit => hit.kind === 'name').length
+    const tokens = hits.length - names
+    const isAllowed = hits.length > 0 && tokens === 0 && (await askPerson($, action.kind, hits))
+    const isBlocked = hits.length > 0 && !isAllowed
+
+    await update($, last, () => ({ command: e.command, hits, isBlocked, isAllowed }))
     await update($, isHidden, () => false)
     const n = await update($, checked, c => c + 1)
-    const b = hits.length > 0 ? await update($, blocked, c => c + 1) : await read($, blocked)
+    const b = isBlocked ? await update($, blocked, c => c + 1) : await read($, blocked)
     $.ui.status(statusText(n, b))
 
     if (hits.length === 0) {
       $.ui.toast(`🛡️ privacy-guard: git ${action.kind} is clean`)
       return next(e)
     }
+    if (isAllowed) {
+      $.ui.toast(`⚠️ privacy-guard: you allowed ${names} name(s) in this git ${action.kind}`)
+      return next(e)
+    }
 
-    const names = hits.filter(hit => hit.kind === 'name').length
-    const tokens = hits.length - names
     $.ui.toast(`⚠️ privacy-guard: blocked git ${action.kind} — ${names} name(s), ${tokens} token(s)`)
     void $.ui.open({ id: PANE, title: 'Privacy guard' })
 
@@ -83,8 +107,11 @@ export const register: Register = on => {
       deny:
         `privacy-guard blocked this git ${action.kind}: the changes add personal names or secrets.\n` +
         `${describe(hits)}\n` +
-        `Replace names with roles ("the presenter", "the organizer") and remove tokens, then try again. ` +
-        `If the user explicitly wants them kept, rerun with ${OVERRIDE} in the command.`,
+        (tokens > 0
+          ? 'Remove the tokens; they are never committed. '
+          : 'The user was asked and did not allow it. ') +
+        'Replace names with roles ("the presenter", "the organizer") and try again. ' +
+        'Do not retry the same changes or try to get around this check.',
     }
     // A failed check (git missing, not a repo) lets the command through rather than wedging it.
   }).catch(($, e, next) => next(e))
@@ -101,7 +128,9 @@ export const register: Register = on => {
     const [color, head, body] =
       check === null
         ? ['cyan', '🛡️ ARMED', 'watching git commit / push for names and Slack tokens']
-        : check.isBlocked
+        : check.isAllowed
+          ? ['yellow', '⚠️ ALLOWED', `you let ${check.hits.length} name(s) through: ${check.hits.slice(0, 3).map(hit => hit.match).join(', ')}`]
+          : check.isBlocked
           ? ['red', '⛔ BLOCKED', `${check.hits.length} hit(s): ${check.hits.slice(0, 3).map(hit => hit.match).join(', ')}`]
           : ['green', '✅ CLEAN', 'last git write had no names or tokens']
 
@@ -130,8 +159,12 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column">
-        <Text bold color={check.isBlocked ? 'red' : 'green'}>
-          {check.isBlocked ? `Blocked: ${check.hits.length} hit(s)` : 'Clean: nothing found'}
+        <Text bold color={check.isAllowed ? 'yellow' : check.isBlocked ? 'red' : 'green'}>
+          {check.isAllowed
+            ? `Allowed by you: ${check.hits.length} hit(s)`
+            : check.isBlocked
+              ? `Blocked: ${check.hits.length} hit(s)`
+              : 'Clean: nothing found'}
         </Text>
         <Text dimColor>{check.command.slice(0, 60)}</Text>
         {check.hits.map(hit => (

@@ -9,6 +9,8 @@ export type Check = {
   command: string
   hits: Hit[]
   isBlocked: boolean
+  // The person chose to let these hits through.
+  isAllowed?: boolean
 }
 
 declare module 'claude-code' {
